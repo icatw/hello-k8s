@@ -16,9 +16,11 @@ export default defineConfig({
         {
           text: '学习指南',
           items: [
+            { text: '第 0 课 · 如何学习', link: '/guide/00-how-to-learn' },
             { text: '学习计划', link: '/guide/learning-plan' },
             { text: '环境与安全边界', link: '/guide/environment' },
             { text: '代理与镜像访问', link: '/guide/proxy' },
+            { text: '基础概念', link: '/guide/fundamentals' },
           ],
         },
       ],

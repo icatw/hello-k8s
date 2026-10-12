@@ -1,85 +1,153 @@
-# 01 · 部署第一个工作负载
+# 01 · 第一个 Kubernetes 应用
 
-本教程会在当前 Kubernetes context 中创建一个名为 `k8s-study` 的 namespace，并在其中运行 Nginx。开始前确认 `kubectl` 指向可丢弃的练习集群。
+这一课不追求一次学会所有命令。我们先理解一个简单目标：让 Kubernetes 持续运行两个 Nginx。
 
-## 学习目标
+如果你还不熟悉 Cluster、Node、Pod、Deployment 和 Service，请先阅读[基础概念](../guide/fundamentals.md)。
 
-- 区分 Pod、Deployment 和 Service。
-- 用 `kubectl` 创建资源并检查期望状态与实际状态。
-- 查看日志和事件，并清理本教程创建的资源。
+## 我们要完成什么
 
-## 1. 确认集群上下文
-
-```bash
-kubectl config current-context
-kubectl get nodes -o wide
+```text
+一台 Node
+└── 一个 Namespace：k8s-study
+    ├── 一个 Deployment：web
+    │   └── 两个 Nginx Pod
+    └── 一个 Service：web
 ```
 
-如果当前上下文不是专用练习集群，先停止，不要继续创建资源。
-
-## 2. 创建 namespace 和 Deployment
+## 第一步：确认机器可以工作
 
 ```bash
-kubectl create namespace k8s-study
-kubectl create deployment web --image=nginx:stable --replicas=2 -n k8s-study
-kubectl rollout status deployment/web -n k8s-study
+k3s kubectl get nodes
 ```
 
-查看资源：
+只看 `STATUS`，应该是 `Ready`，表示这台机器可以接收工作。
+
+## 第二步：创建一个练习房间
 
 ```bash
-kubectl get deployment,replicaset,pod -n k8s-study -o wide
-kubectl describe deployment web -n k8s-study
+k3s kubectl create namespace k8s-study
 ```
 
-Deployment 记录期望副本数并协调 ReplicaSet；ReplicaSet 再确保对应数量的 Pod 存在。Pod 是调度和运行容器的基本单元。
+Namespace 可以理解为一个练习房间。后面的资源都放进这个房间，方便查看和清理。
 
-## 3. 查看日志和事件
+## 第三步：告诉 Kubernetes 我们想要什么
 
 ```bash
-kubectl logs deployment/web -n k8s-study
-kubectl get events -n k8s-study --sort-by=.metadata.creationTimestamp
+k3s kubectl create deployment web \
+  --image=nginx:stable \
+  --replicas=2 \
+  -n k8s-study
 ```
 
-观察 Pod 的状态、重启次数、所在节点，以及事件中的调度和镜像拉取信息。
+意思是：创建一个叫 `web` 的 Deployment，使用 Nginx 镜像，希望同时运行 2 个副本。
 
-## 4. 扩缩容
+Deployment 会持续努力让“实际运行数量”符合“希望运行数量”。
+
+## 第四步：看它实际创建了什么
 
 ```bash
-kubectl scale deployment/web --replicas=3 -n k8s-study
-kubectl get pods -n k8s-study -w
+k3s kubectl get deployment,replicaset,pod -n k8s-study
 ```
 
-观察到 3 个 Pod 后按 `Ctrl-C` 退出观察，再缩回 2 个：
+| 对象 | 一句话理解 |
+| --- | --- |
+| Deployment | 记录我们希望应用怎样运行 |
+| ReplicaSet | 帮 Deployment 维持 Pod 数量 |
+| Pod | 实际运行 Nginx 容器的单元 |
+
+Pod 的 `Running` 表示容器已经启动；`Pending` 表示还在等待调度；`ContainerCreating` 表示正在创建容器或准备镜像。
+
+## 第五步：等待两个 Pod 可用
 
 ```bash
-kubectl scale deployment/web --replicas=2 -n k8s-study
+k3s kubectl rollout status deployment/web -n k8s-study
+k3s kubectl get pods -n k8s-study -o wide
 ```
 
-## 5. 暴露为集群内 Service
+确认有两个 Pod，且都是 `1/1 Running`。
+
+## 第六步：为应用创建稳定入口
+
+Pod 的 IP 可能变化，所以不让其他程序直接记 Pod IP。创建 Service：
 
 ```bash
-kubectl expose deployment web --port=80 --target-port=80 --type=ClusterIP -n k8s-study
-kubectl get service,endpoints -n k8s-study
+k3s kubectl expose deployment web \
+  --port=80 \
+  --target-port=80 \
+  --type=ClusterIP \
+  -n k8s-study
 ```
 
-Service 用稳定名称和虚拟 IP 选择后端 Pod。此处只创建集群内部可访问的 ClusterIP，不会占用宿主机 80 端口。
+`ClusterIP` 表示只允许集群内部访问，不占用宿主机 80 端口。
 
-## 6. 清理本教程资源
-
-确认 namespace 名称后，只删除本教程创建的 namespace：
+检查 Service 是否找到了 Pod：
 
 ```bash
-kubectl delete namespace k8s-study
+k3s kubectl get service,endpoints -n k8s-study
 ```
 
-## 完成后记录
+如果 `ENDPOINTS` 中出现两个 Pod IP 和 `:80`，说明 Service 已经找到两个 Pod。
 
-将集群类型、`kubectl` context 名称（不要记录凭据）、观察到的对象关系、遇到的问题和结论写入[学习记录](../journal/README.md)。
+## 第七步：实际访问页面
 
-## 排查提示
+在服务器上执行：
 
-- Pod 长时间 Pending：查看 `kubectl describe pod` 和 namespace 事件。
-- ImagePullBackOff：检查镜像名称、标签以及集群节点的镜像仓库连通性。
-- Service 没有 Endpoints：核对 Service selector 与 Pod labels。
-- 不要通过删除整个集群或清理宿主机 Docker 来解决单个练习资源的问题。
+```bash
+k3s kubectl port-forward service/web 8080:80 -n k8s-study
+```
+
+看到 `Forwarding from 127.0.0.1:8080 -> 80` 后，不要立刻按 `Ctrl-C`。保持这个终端运行，再打开第二个终端执行：
+
+```bash
+curl http://127.0.0.1:8080
+```
+
+看到 Nginx 的 HTML 响应后，回到第一个终端按 `Ctrl-C`。
+
+`port-forward` 只是临时把本机 8080 接到 Service，方便学习和验证。
+
+## 第八步：观察扩容
+
+```bash
+k3s kubectl scale deployment web --replicas=3 -n k8s-study
+k3s kubectl get pods -n k8s-study -w
+```
+
+看到第三个 Pod 变成 `Running` 后按 `Ctrl-C`。这说明你修改了 Deployment 的目标数量，Kubernetes 自动创建了新的 Pod。
+
+## 第九步：清理练习
+
+```bash
+k3s kubectl delete namespace k8s-study
+```
+
+删除 Namespace 会删除本课创建的 Deployment、ReplicaSet、Pod 和 Service。
+
+## 课后只回答三个问题
+
+1. Node 和 Pod 分别是什么？
+
+<details>
+<summary>展开参考答案</summary>
+
+Node 是集群中提供 CPU、内存、磁盘和网络的实际机器。Pod 是 Kubernetes 调度和运行应用的基本单元，里面通常运行一个或多个容器。
+
+</details>
+
+2. 为什么不建议长期直接访问 Pod IP？
+
+<details>
+<summary>展开参考答案</summary>
+
+Pod 可能因为故障、更新或扩缩容被删除并重新创建，新 Pod 的 IP 可能变化。Service 提供稳定的访问入口，并把请求转发给当前可用的 Pod。
+
+</details>
+
+3. Deployment 的副本数从 2 改成 3 后，谁创建了第三个 Pod？
+
+<details>
+<summary>展开参考答案</summary>
+
+你修改了 Deployment 的目标副本数。Deployment 背后的 ReplicaSet 发现实际只有 2 个 Pod，于是创建了第 3 个 Pod。
+
+</details>

@@ -22,4 +22,4 @@ features:
     details: 用统一记录模板保存实际环境、命令、现象、排查过程和结论。
 ---
 
-建议先阅读[环境与安全边界](/guide/environment)，再按[学习计划](/guide/learning-plan)推进。练习环境建立后，从[第一个工作负载](/tutorials/01-first-workload)开始。
+建议先阅读[第 0 课 · 如何学习](/guide/00-how-to-learn)，再看[基础概念](/guide/fundamentals)和[环境与安全边界](/guide/environment)，最后按[学习计划](/guide/learning-plan)推进。
