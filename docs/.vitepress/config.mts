@@ -30,6 +30,7 @@ export default defineConfig({
           items: [
             { text: '01 · 第一个 Kubernetes 应用', link: '/tutorials/01-first-workload' },
             { text: '02 · 用 YAML 描述应用', link: '/tutorials/02-declarative-yaml' },
+            { text: '03 · Service 如何找到 Pod', link: '/tutorials/03-service-discovery' },
           ],
         },
       ],
