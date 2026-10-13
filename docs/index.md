@@ -22,4 +22,4 @@ features:
     details: 用统一记录模板保存实际环境、命令、现象、排查过程和结论。
 ---
 
-建议先阅读[第 0 课 · 如何学习](/guide/00-how-to-learn)，再看[基础概念](/guide/fundamentals)和[环境与安全边界](/guide/environment)，完成 YAML 教程后继续学习[Service 如何找到 Pod](/tutorials/03-service-discovery)。
+建议先阅读[第 0 课 · 如何学习](/guide/00-how-to-learn)，再看[基础概念](/guide/fundamentals)和[环境与安全边界](/guide/environment)，完成 Service 教程后继续学习[ConfigMap 配置管理](/tutorials/04-configmap)。
